@@ -27,7 +27,7 @@ WATCH_HOSTS = ('zcode.z.ai', 'bigmodel.cn', 'zhipuai', 'z.ai',
 # 100+ legit paths (skills list, memory index, tool defs). Real context
 # stuffing shows up as thousands of paths or huge bodies.
 MAX_DISTINCT_PATHS = 300         # per request popup threshold
-MAX_BODY_KB = 8192               # per request popup threshold
+MAX_BODY_KB = 32768              # per request popup threshold (32MB)
 SAVE_EVERY = 20
 
 WIN_PATH = re.compile(r'[A-Za-z]:\\{1,2}[A-Za-z0-9_\-./\\ ]{2,120}')
