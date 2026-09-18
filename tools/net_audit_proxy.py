@@ -39,6 +39,10 @@ DEFAULT_CONFIG = {
     'daily_up_limit': 600 * 1024 * 1024,    # all hosts combined, hard popup
     'daily_up_soft': 50 * 1024 * 1024,      # per host - slow-trickle visibility
     'ignore_hosts': ['127.0.0.1', 'localhost'],
+    # any SNI matching these substrings gets connection-refused at the proxy:
+    # Alibaba OSS was the snapshot-upload destination (verified by the blog's
+    # packet capture); ZCode's API plane (zcode.z.ai) is NOT on these domains.
+    'block_hosts': ['.aliyuncs.com'],
 }
 
 
@@ -216,6 +220,12 @@ async def handle_connect(reader, writer):
         if not head or not sni:
             writer.close()
             log('no SNI in ClientHello (%d bytes head)' % len(head))
+            return
+        if any(pat in sni for pat in CNT.cfg().get('block_hosts', [])):
+            writer.write(b'HTTP/1.1 403 Forbidden (blocked by net audit)\r\n\r\n')
+            await writer.drain()
+            writer.close()
+            log('BLOCKED  %s' % sni)
             return
         try:
             up_r, up_w = await asyncio.open_connection(sni, 443)
