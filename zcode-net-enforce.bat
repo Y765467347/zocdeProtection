@@ -62,6 +62,8 @@ setx HTTP_PROXY "http://127.0.0.1:%PROXYPORT%" >nul
 setx HTTPS_PROXY "http://127.0.0.1:%PROXYPORT%" >nul
 setx NO_PROXY "localhost,127.0.0.1" >nul
 
+echo [4b/6] Pointing ZCode API client at the proxy (official setting.json keys)...
+if exist "%USERPROFILE%\.zcode2\setting.json" "%PYDIR%\python.exe" -c "import os,json; f=os.path.join(os.environ['USERPROFILE'],'.zcode','v2','setting.json'); j=json.load(open(f,encoding='utf-8-sig')); j['httpProxy']='http://127.0.0.1:%PROXYPORT%'; j['httpProxyNoProxy']='localhost,127.0.0.1'; j['httpProxyCaCertPath']=os.path.join(os.environ['USERPROFILE'],'.mitmproxy','mitmproxy-ca-cert.pem'); json.dump(j,open(f,'w',encoding='utf-8'),indent=2,ensure_ascii=False)" 2>nul && echo       httpProxy keys written
 echo [5/6] Patching ZCode shortcuts with --proxy-server...
 powershell -NoProfile -Command "$sh = New-Object -ComObject WScript.Shell; $dirs = @(\"$env:USERPROFILE\Desktop\", \"$env:APPDATA\Microsoft\Windows\Start Menu\", \"$env:ProgramData\Microsoft\Windows\Start Menu\"); Get-ChildItem $dirs -Filter *.lnk -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $l = $sh.CreateShortcut($_.FullName); if ($l.TargetPath -like '*ZCode.exe' -and $l.Arguments -notlike '*proxy-server*') { $l.Arguments = ($l.Arguments + ' --proxy-server=http://127.0.0.1:%PROXYPORT%').Trim(); $l.Save(); Write-Output ('  patched: ' + $_.FullName) } }"
 

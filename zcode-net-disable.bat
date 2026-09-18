@@ -24,6 +24,8 @@ setx HTTPS_PROXY "" >nul
 setx NO_PROXY "" >nul
 setx NODE_EXTRA_CA_CERTS "" >nul
 
+echo [2b/5] Removing httpProxy keys from setting.json...
+if exist "%USERPROFILE%\.zcode2\setting.json" python -c "import os,json; f=os.path.join(os.environ['USERPROFILE'],'.zcode','v2','setting.json'); j=json.load(open(f,encoding='utf-8-sig')); [j.pop(k,None) for k in ('httpProxy','httpProxyNoProxy','httpProxyCaCertPath')]; json.dump(j,open(f,'w',encoding='utf-8'),indent=2,ensure_ascii=False)" 2>nul
 echo [3/5] Un-patching ZCode shortcuts...
 powershell -NoProfile -Command "$sh = New-Object -ComObject WScript.Shell; $dirs = @(\"$env:USERPROFILE\Desktop\", \"$env:APPDATA\Microsoft\Windows\Start Menu\", \"$env:ProgramData\Microsoft\Windows\Start Menu\"); Get-ChildItem $dirs -Filter *.lnk -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $l = $sh.CreateShortcut($_.FullName); if ($l.TargetPath -like '*ZCode.exe' -and $l.Arguments -like '*proxy-server*') { $l.Arguments = ($l.Arguments -replace ' --proxy-server=http://127\.0\.0\.1:876[56]', '').Trim(); $l.Save(); Write-Output ('  restored: ' + $_.FullName) } }"
 
