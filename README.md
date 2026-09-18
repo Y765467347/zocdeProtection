@@ -47,3 +47,15 @@ UI 开关不拦截该链路。
 - `tools/` 内为仓库的版本快照；**实际运行的是** `%USERPROFILE%\.zcode-tools\` 下的副本与计划任务，改动请同步两处。
 - ZCode 升级会整体替换 `app.asar` 使 L1 失效：L3 每小时校验并弹窗提醒，重跑 `%USERPROFILE%\.zcode-tools\zcode-kill-snapshot-upload.bat` 即可（端点被改名时脚本会明确拒绝并告警，需要重新分析）。
 - 代价：失去"检查点/时间线回滚"功能，对话/补全不受影响。
+
+## 最小拦截模式（当前：仅 OSS 域名封锁）
+
+网络层已按用户要求缩减为最小形态：仅保留 8765 计数/拦截代理（含
+`block_hosts: [.aliyuncs.com]`），ZCode 经官方 `setting.json` 三键（httpProxy/
+httpProxyNoProxy）走该代理；无 MITM、无防火墙、无环境变量、无快捷方式参数。
+代理挂掉时 ZCode fail-closed，`ZCodeNetAuditKeep` 计划任务每 5 分钟保活。
+
+另附：Clash Verge 用户的机器级封锁——在 `profiles/*.yaml`（含三个订阅的
+merge 文件与全局 Merge.yaml）写入 `prepend-rules: DOMAIN-SUFFIX,aliyuncs.com,REJECT`，
+覆盖系统代理类应用的阿里云域名。TUN 关闭时不影响直连流量（ZCode 模型流量），
+故 ZCode 侧仍依赖上面的 8765 代理拦截。
