@@ -28,7 +28,7 @@ if not exist "%TOOLS%\net_audit_proxy.py" (
     exit /b 1
 )
 
-choice /C YN /M "Enable MITM content inspection (layer 2)? Needs CA install; pick N if unsure"
+choice /C YN /T 30 /D N /M "Enable MITM content inspection? [Y/N] (auto-N in 30s)"
 if %errorlevel%==1 (set "MODE=mitm" & set "PROXYPORT=8766") else (set "MODE=basic" & set "PROXYPORT=8765")
 
 echo [1/6] Closing ZCode (config applies to new processes only)...

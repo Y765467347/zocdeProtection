@@ -39,3 +39,16 @@ if (-not $proxyOk) {
         Start-Process -FilePath $pyw -ArgumentList ('"{0}"' -f (Join-Path $toolsDir 'net_audit_proxy.py')) -WindowStyle Hidden
     }
 }
+
+# keep the MITM inspection layer alive (port 8766, chained through 8765)
+$mitmOk = $false
+try {
+    $c2 = New-Object Net.Sockets.TcpClient
+    $c2.Connect('127.0.0.1', 8766)
+    $c2.Close(); $mitmOk = $true
+} catch {}
+$mitmLauncher = Join-Path $toolsDir 'run_mitm.bat'
+if (-not $mitmOk -and (Test-Path $mitmLauncher)) {
+    Add-Content -Path $log -Value ('{0} mitm layer down - restarting' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+    Start-Process -FilePath $env:ComSpec -ArgumentList '/c', ('"{0}"' -f $mitmLauncher) -WindowStyle Hidden
+}
