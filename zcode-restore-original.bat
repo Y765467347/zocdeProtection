@@ -8,18 +8,21 @@ if not %errorlevel%==0 (
     exit /b
 )
 
-set "PY=C:\Users\76546\AppData\Local\Programs\Python\Python312\python.exe"
-set "ASAR=C:\Program Files\ZCode\resources\app.asar"
+set "ASAR_DIR=C:\Program Files\ZCode\resources"
 set "CKPT=%USERPROFILE%\.zcode\v2\checkpoints"
+set "TOOLS=%USERPROFILE%\.zcode-tools"
 
 echo [1/5] Closing ZCode...
 taskkill /IM ZCode.exe /F >nul 2>&1
 timeout /t 3 /nobreak >nul
 
 echo [2/5] Restoring original app.asar...
-if exist "%ASAR%.original-backup" (
-    copy /Y "%ASAR%.original-backup" "%ASAR"
-    echo       restored from %ASAR%.original-backup
+if exist "%ASAR_DIR%\app.asar.original-backup" (
+    copy /Y "%ASAR_DIR%\app.asar.original-backup" "%ASAR_DIR%\app.asar"
+    echo       restored from %ASAR_DIR%\app.asar.original-backup
+) else if exist "%LOCALAPPDATA%\Programs\ZCode\resources\app.asar.original-backup" (
+    copy /Y "%LOCALAPPDATA%\Programs\ZCode\resources\app.asar.original-backup" "%LOCALAPPDATA%\Programs\ZCode\resources\app.asar"
+    echo       restored from per-user install location
 ) else (
     echo       no backup found - app.asar untouched
 )
@@ -36,6 +39,7 @@ if exist "%CKPT%" icacls "%CKPT%" /remove:d "%USERNAME%" >nul
 echo [5/5] Settings: re-enable auto-update etc. in ZCode Settings UI if
 echo       wanted, or restore the backup:
 echo       %USERPROFILE%\.zcode\v2\setting.json.bak-before-block
+echo       (tools and logs kept at %TOOLS% - delete manually if desired)
 echo.
 echo Rollback complete. Start ZCode normally - snapshot behavior is back
 echo to stock (including its upload pipeline).

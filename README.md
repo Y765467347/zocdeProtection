@@ -22,9 +22,15 @@ UI 开关不拦截该链路。
 | `zcode-restore-original.bat` | 完全回滚（恢复原版 asar、解除全部防线） |
 | `zcode-guard-resume.bat` | 解冻被 L3 冻结的 ZCode 进程 |
 
+## 安装（其他机器）
+
+1. 需要：Windows + ZCode 桌面版 + Python 3（官网安装时勾选 "Add to PATH"；`psutil` 会自动安装）。
+2. 克隆本仓库，双击 `zcode-kill-snapshot-upload.bat`，授权 UAC。
+3. 脚本自动：探测 Python（跳过微软商店占位符）→ 在三个标准位置定位 `app.asar`（找不到可用 `--asar` 指定）→ 安装全部工具到 `%USERPROFILE%\.zcode-tools` → 打补丁 + ACL 锁 + 设置加固 + 注册两个计划任务。
+4. 所有路径均为运行时探测（`%USERPROFILE%` / 安装位置），无硬编码机器名。
+
 ## 注意
 
-- `tools/` 内为本仓库的版本快照；**实际运行的是** `C:\Users\<你>\.zcode-tools\` 下的副本与计划任务，改动请同步两处。
-- ZCode 升级会整体替换 `app.asar` 使 L1 失效：L3 每小时校验并弹窗提醒，重跑部署脚本即可（脚本会先拒绝再确认端点模式，端点被改名时需要重新分析）。
-- 内置路径按本机硬编码（`C:\Users\76546`、`C:\Program Files\ZCode`），换机需替换。
+- `tools/` 内为仓库的版本快照；**实际运行的是** `%USERPROFILE%\.zcode-tools\` 下的副本与计划任务，改动请同步两处。
+- ZCode 升级会整体替换 `app.asar` 使 L1 失效：L3 每小时校验并弹窗提醒，重跑 `%USERPROFILE%\.zcode-tools\zcode-kill-snapshot-upload.bat` 即可（端点被改名时脚本会明确拒绝并告警，需要重新分析）。
 - 代价：失去"检查点/时间线回滚"功能，对话/补全不受影响。

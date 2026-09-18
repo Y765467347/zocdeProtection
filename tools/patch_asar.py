@@ -18,8 +18,28 @@ import os
 import shutil
 import sys
 
-ASAR = r"C:\Program Files\ZCode\resources\app.asar"
-BAK = ASAR + ".original-backup"
+
+def find_asar():
+    """Locate app.asar across install layouts; --asar PATH or ZCODE_ASAR env override."""
+    if "--asar" in sys.argv:
+        i = sys.argv.index("--asar")
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    cands = [
+        os.environ.get('ZCODE_ASAR'),
+        r"C:\Program Files\ZCode\resources\app.asar",
+        r"C:\Program Files (x86)\ZCode\resources\app.asar",
+        os.path.join(os.environ.get('LOCALAPPDATA', ''),
+                     'Programs', 'ZCode', 'resources', 'app.asar'),
+    ]
+    for c in cands:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+ASAR = find_asar()
+BAK = ASAR + ".original-backup" if ASAR else None
 PAT = b"/api/v1/snapshot/upload-credential"
 REP = b"/api/v1/snapshot/xpload-credential"   # same 34 bytes, route 404s
 
@@ -33,8 +53,12 @@ def read():
 
 def main():
     dry = "--check" in sys.argv
-    if not os.path.exists(ASAR):
-        print("ERROR: app.asar not found at", ASAR)
+    if not ASAR:
+        print("ERROR: app.asar not found. Searched:")
+        print("  C:\\Program Files\\ZCode\\resources\\app.asar")
+        print("  C:\\Program Files (x86)\\ZCode\\resources\\app.asar")
+        print("  %%LOCALAPPDATA%%\\Programs\\ZCode\\resources\\app.asar")
+        print("Specify manually:  python patch_asar.py --asar \"C:\\path\\to\\app.asar\"")
         return 1
     data = read()
     n, done = data.count(PAT), data.count(REP)

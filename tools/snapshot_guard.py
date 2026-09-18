@@ -50,9 +50,26 @@ PATH_RX = re.compile(r'/(checkpoints|snapshot)')
 ENTROPY_MIN_BYTES = 256 * 1024
 ENTROPY_THRESHOLD = 7.8
 
-ASAR = r"C:\Program Files\ZCode\resources\app.asar"
 ASAR_PAT = b"/api/v1/snapshot/upload-credential"
 ASAR_REP = b"/api/v1/snapshot/xpload-credential"
+
+
+def find_asar():
+    """Locate app.asar across install layouts; ZCODE_ASAR env overrides."""
+    cands = [
+        os.environ.get('ZCODE_ASAR'),
+        r"C:\Program Files\ZCode\resources\app.asar",
+        r"C:\Program Files (x86)\ZCode\resources\app.asar",
+        os.path.join(os.environ.get('LOCALAPPDATA', ''),
+                     'Programs', 'ZCode', 'resources', 'app.asar'),
+    ]
+    for c in cands:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+ASAR = find_asar()
 
 SELFTEST = '--selftest' in sys.argv
 ALLOW_SUSPEND = not SELFTEST and '--no-suspend' not in sys.argv
@@ -163,12 +180,15 @@ def suspend_zcode():
     return n
 
 
+RESUME_BAT = os.path.join(TOOLS, 'zcode-guard-resume.bat')
+DEPLOY_BAT = os.path.join(TOOLS, 'zcode-kill-snapshot-upload.bat')
+
 ALERT_TEXT = (
     'ZCode Snapshot Guard: 检测到 ZCode 正在生成工作区快照加密包。\n\n'
     '已采取的动作：冻结全部 ZCode 进程（掐断上传）并删除该加密包。\n\n'
-    '恢复使用：运行 C:\\Users\\76546\\Desktop\\test0918\\zcode-guard-resume.bat；\n'
+    '恢复使用：运行 ' + RESUME_BAT + '；\n'
     '更稳妥：任务管理器结束 ZCode 后重启。\n'
-    '详情见 C:\\Users\\76546\\.zcode-tools\\guard.log'
+    '详情见 ' + LOG
 )
 
 _alert_showing = {}   # key -> True while its popup is on screen
@@ -272,7 +292,7 @@ SUSPECT_TEXT = (
     'ZCode Snapshot Guard: 快照类目录下出现可疑文件（改名/换后缀的加密包？）。\n\n'
     '已自动记录但未删除（避免误伤）：{path}\n\n'
     '请检查该文件来源；确认是快照产物就手动删除并检查防护是否被升级绕过。\n'
-    '日志: C:\\Users\\76546\\.zcode-tools\\guard.log'
+    '日志: ' + LOG
 )
 
 
@@ -299,7 +319,7 @@ def acl_check():
             if not locked or leftovers:
                 log('ACL CHECK FAILED  locked=%s contents=%s' % (locked, leftovers))
                 alert('ZCode Snapshot Guard: checkpoints 目录防护异常（DENY 缺失或目录非空），\n'
-                      '请重新运行 C:\\Users\\76546\\Desktop\\test0918\\zcode-kill-snapshot-upload.bat。',
+                      '请重新运行 ' + DEPLOY_BAT,
                       key='acl')
         except Exception:
             pass
@@ -307,13 +327,14 @@ def acl_check():
     if st == 'stock':
         log('ASAR CHECK FAILED - upload endpoint is back (app updated?)')
         alert('ZCode Snapshot Guard: 检测到 ZCode 更新，快照上传端点已恢复。\n'
-              '请重新运行 C:\\Users\\76546\\Desktop\\test0918\\zcode-kill-snapshot-upload.bat 重新打补丁。',
+              '请重新运行 ' + DEPLOY_BAT + ' 重新打补丁。',
               key='asar')
     elif st == 'unknown':
         log('ASAR CHECK UNKNOWN - endpoint string no longer matches this build')
-        alert('ZCode Snapshot Guard: ZCode 版本变化过大，上传端点字符串已无法识别。\n'
+        alert('ZCode Snapshot Guard: ZCode 版本变化过大，上传端点字符串已无法识别'
+              '（或未找到 app.asar）。\n'
               '可能是端点被改名——请勿假设安全，需重新分析并更新补丁。\n'
-              '运行: python C:\\Users\\76546\\.zcode-tools\\patch_asar.py --check',
+              '运行: python ' + os.path.join(TOOLS, 'patch_asar.py') + ' --check',
               key='asar-unknown')
 
 
