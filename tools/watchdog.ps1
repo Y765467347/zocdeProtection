@@ -20,6 +20,22 @@ foreach ($pattern in $patterns) {
     foreach ($h in $hits) {
         $line = '{0} deleted {1} ({2} bytes)' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $h.FullName, $h.Length
         Add-Content -Path $log -Value $line
-        Remove-Item -LiteralPath $h.FullName -Force
+        Remove-Object -LiteralPath $h.FullName -Force
+    }
+}
+
+# keep the net-audit counting proxy alive (layer: forced loopback accounting)
+$proxyOk = $false
+try {
+    $c = New-Object Net.Sockets.TcpClient
+    $c.Connect('127.0.0.1', 8765)
+    $c.Close(); $proxyOk = $true
+} catch {}
+if (-not $proxyOk) {
+    $pyw = (Get-Command pythonw.exe -ErrorAction SilentlyContinue).Source
+    if (-not $pyw) { $pyw = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\pythonw.exe' }
+    if (Test-Path $pyw) {
+        Add-Content -Path $log -Value ('{0} net audit proxy down - restarting' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+        Start-Process -FilePath $pyw -ArgumentList ('"{0}"' -f (Join-Path $toolsDir 'net_audit_proxy.py')) -WindowStyle Hidden
     }
 }

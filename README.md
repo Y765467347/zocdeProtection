@@ -12,7 +12,20 @@ UI 开关不拦截该链路。
 | L1 | `patch_asar.py`：对 `app.asar` 中 3 处 `/api/v1/snapshot/upload-credential` 端点做等长字节替换（404），捕获在打包前中止 | 主防线 |
 | L2 | `icacls /deny` 锁死 `%USERPROFILE%\.zcode\v2\checkpoints`（拒绝写入/新建/删除） | 路径锁 |
 | L3 | `snapshot_guard.py` 常驻进程（pythonw 无窗口，0.5s 增量扫描）：按后缀 + 内容签名（encryptedDataKey/keyWrapAlgorithm）+ 高熵启发式三层检测；确认目标先冻结全部 ZCode 进程再删除；每小时三态校验 asar 补丁与 ACL | 实时兜底 |
-| L4 | `watchdog.ps1` 计划任务（15 分钟）：checkpoints 路径下 `.enc`/`.envelope.json` 清理 + 审计日志 | 善后审计 |
+| L4 | `watchdog.ps1` 计划任务（15 分钟）：checkpoints 路径下 `.enc`/`.envelope.json` 清理 + 审计日志 + 审计代理保活 | 善后审计 |
+
+## 网络强制层（防"小流量连续偷传"）
+
+`zcode-net-enforce.bat`（管理员）部署，`zcode-net-disable.bat` 回滚：
+
+| 层 | 组件 | 作用 |
+|---|---|---|
+| N1 | `net_audit_proxy.py`（8765，常驻） | 不解密的计数隧道：按域名记账每时/每日上行字节，超阈值弹窗。碎片化外传藏得住单次内容、藏不住累计流量 |
+| N2 | `content_addon.py` + mitmdump（8766，串接 8765，可选） | MITM 内容检查：记录发往 zcode/bigmodel 的请求体大小与出现的文件路径清单，单请求携带异常多文件路径或异常大请求体时弹窗 |
+| N3 | 防火墙规则 + `--proxy-server` 快捷方式 + 代理环境变量 | 强制 ZCode 流量只能走回环代理（fail-closed：代理停了 ZCode 就断网） |
+| N4 | `asar_audit.py` | 每次手动升级前对比新旧 asar：报告新增/变更文件中出现的上传原语（fetch/FormData/XHR/sendBeacon/WebSocket/multipart） |
+
+升级流程：下载新版本 → `python tools/asar_audit.py` 审计 → 无可疑再安装 → 重跑 `zcode-kill-snapshot-upload.bat`。
 
 ## 使用
 
