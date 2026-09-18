@@ -134,25 +134,26 @@ def main():
 
     suspicious = 0
     for rel in sorted(changed):
-        old = bak_files[rel].decode('utf-8', 'replace').splitlines()
-        new = cur_files[rel].decode('utf-8', 'replace').splitlines()
-        sm = difflib.SequenceMatcher(None, old, new, autojunk=True)
-        added_lines = []
-        for tag, i1, i2, j1, j2 in sm.get_opcodes():
-            if tag in ('insert', 'replace'):
-                added_lines.extend(new[j1:j2])
-        joined = '\n'.join(added_lines)
-        p_hits = len(list(PRIMITIVES.finditer(joined)))
-        s_hits = len(list(SNAPSHOTISH.finditer(joined)))
-        if p_hits or s_hits:
+        old = bak_files[rel].decode('utf-8', 'replace')
+        new = cur_files[rel].decode('utf-8', 'replace')
+        # minified bundles are one huge line: line diffs are useless.
+        # instead: primitive count delta + contexts of primitives that do
+        # not exist ANYWHERE in the old version = genuinely new code.
+        old_prim = sum(1 for _ in PRIMITIVES.finditer(old))
+        new_prim = sum(1 for _ in PRIMITIVES.finditer(new))
+        fresh = []
+        for m in PRIMITIVES.finditer(new):
+            ctx = new[max(0, m.start() - 60):m.end() + 100]
+            if ctx not in old:
+                fresh.append(ctx)
+            if len(fresh) >= 5:
+                break
+        if new_prim > old_prim or fresh:
             suspicious += 1
-            print('CHANGED+PRIMITIVES: %s  (+%d lines, prim=%d, snapshot=%d)'
-                  % (rel[:60], len(added_lines), p_hits, s_hits))
-            for line in added_lines:
-                if PRIMITIVES.search(line) or SNAPSHOTISH.search(line):
-                    print('    |', line.strip()[:160])
-                    if sum(1 for _ in [0]) and len(added_lines) > 400:
-                        break
+            print('CHANGED: %s  primitives %d -> %d  fresh-contexts=%d'
+                  % (rel[:58], old_prim, new_prim, len(fresh)))
+            for c in fresh[:3]:
+                print('    | ...%s...' % c.replace('\n', ' ')[:170])
     print()
     print('RESULT:', '%d changed files add upload-capable code' % suspicious,
           '- REVIEW MANUALLY before trusting the update' if suspicious

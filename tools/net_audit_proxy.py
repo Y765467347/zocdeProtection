@@ -35,8 +35,9 @@ PORT = 8765
 BUF = 65536
 
 DEFAULT_CONFIG = {
-    'hourly_up_limit': 150 * 1024 * 1024,   # per host
-    'daily_up_limit': 600 * 1024 * 1024,    # all hosts combined
+    'hourly_up_limit': 150 * 1024 * 1024,   # per host, hard popup
+    'daily_up_limit': 600 * 1024 * 1024,    # all hosts combined, hard popup
+    'daily_up_soft': 50 * 1024 * 1024,      # per host - slow-trickle visibility
     'ignore_hosts': ['127.0.0.1', 'localhost'],
 }
 
@@ -82,6 +83,17 @@ class Counters:
         except Exception:
             self.data = {}
         self.alerted = set()
+        self._cfg = None
+        self._cfg_at = 0.0
+        self._dirty = 0
+
+    def cfg(self):
+        # cache config 30 s - it was re-read on EVERY 64 KB chunk before
+        now = time.monotonic()
+        if self._cfg is None or now - self._cfg_at > 30:
+            self._cfg = load_cfg()
+            self._cfg_at = now
+        return self._cfg
 
     def bucket(self, host):
         day = time.strftime('%Y-%m-%d')
@@ -90,15 +102,18 @@ class Counters:
         return d, d['days'].setdefault(day, [0, 0]), d['hours'].setdefault(hour, [0, 0])
 
     def add(self, host, up, down):
-        cfg = load_cfg()
+        cfg = self.cfg()
         if any(h in host for h in cfg['ignore_hosts']):
             return
         d, day, hour = self.bucket(host)
         day[0] += up; day[1] += down
         hour[0] += up; hour[1] += down
-        self.flush()
+        self._dirty += 1
+        if self._dirty >= 16:          # flush every ~1 MB instead of every chunk
+            self._dirty = 0
+            self.flush()
         key_h = (host, hour)
-        key_d = ('TOTAL', time.strftime('%Y-%m-%d'))
+        key_d = (host, time.strftime('%Y-%m-%d'))
         if hour[0] > cfg['hourly_up_limit'] and key_h not in self.alerted:
             self.alerted.add(key_h)
             m = ('上行流量异常: %s 本小时已上传 %.1f MB (阈值 %.0f MB)\n'
@@ -107,10 +122,19 @@ class Counters:
                                cfg['hourly_up_limit'] / 1048576, LOG))
             log('ALERT ' + m.replace('\n', ' '))
             alert(m)
+        if day[0] > cfg.get('daily_up_soft', 50 * 1048576) and ('soft', key_d) not in self.alerted:
+            self.alerted.add(('soft', key_d))
+            m = ('慢性渗漏可疑: %s 今日累计上传 %.1f MB (软阈值 %.0f MB)\n'
+                 '正常对话/补全远达不到这个量——若你没有传大附件,\n'
+                 '这可能是小流量连续外传。详情: %s'
+                 % (host, day[0] / 1048576,
+                    cfg.get('daily_up_soft', 52428800) / 1048576, LOG))
+            log('ALERT ' + m.replace('\n', ' '))
+            alert(m)
         total_up = sum(v['days'].get(time.strftime('%Y-%m-%d'), [0, 0])[0]
                        for v in self.data.values())
-        if total_up > cfg['daily_up_limit'] and key_d not in self.alerted:
-            self.alerted.add(key_d)
+        if total_up > cfg['daily_up_limit'] and ('TOTAL', time.strftime('%Y-%m-%d')) not in self.alerted:
+            self.alerted.add(('TOTAL', time.strftime('%Y-%m-%d')))
             m = ('全网日上传异常: 今日累计已上传 %.1f MB\n阈值 %.0f MB。详情: %s'
                  % (total_up / 1048576, cfg['daily_up_limit'] / 1048576, LOG))
             log('ALERT ' + m.replace('\n', ' '))

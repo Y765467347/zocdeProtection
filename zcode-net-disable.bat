@@ -10,6 +10,7 @@ if not %errorlevel%==0 (
 
 echo [1/5] Removing firewall rule...
 netsh advfirewall firewall delete rule name="ZCodeForceLoopbackProxy" >nul 2>&1
+netsh advfirewall firewall delete rule name="ZCodeForceLoopbackProxy-user" >nul 2>&1
 
 echo [2/5] Removing proxy env vars...
 setx HTTP_PROXY "" >nul

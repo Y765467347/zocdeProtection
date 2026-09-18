@@ -45,7 +45,10 @@ if "%MODE%"=="mitm" (
         echo   mitmdump missing - installing mitmproxy...
         "%PYDIR%\python.exe" -m pip install --user mitmproxy >nul 2>&1
     )
-    schtasks /Create /TN "ZCodeNetMITM" /SC ONLOGON /DELAY 0000:35 /F /TR "cmd.exe /c \"\"%MITMDUMP%\" -s \"%TOOLS%\content_addon.py\" --listen-host 127.0.0.1 --listen-port 8766 --mode upstream:http://127.0.0.1:8765 --set \"confdir=%USERPROFILE%\.mitmproxy\" >> \"%TOOLS%\mitmdump_err.log\" 2^>^&1\""
+    rem generate a launcher bat - nested quoting inside schtasks /TR is unreliable
+    > "%TOOLS%\run_mitm.bat" echo @echo off
+    >> "%TOOLS%\run_mitm.bat" echo "%MITMDUMP%" -s "%TOOLS%\content_addon.py" --listen-host 127.0.0.1 --listen-port 8766 --mode upstream:http://127.0.0.1:8765 --set "confdir=%USERPROFILE%\.mitmproxy" >> "%TOOLS%\mitmdump_err.log" 2^>^&1
+    schtasks /Create /TN "ZCodeNetMITM" /SC ONLOGON /DELAY 0000:35 /F /TR "\"%TOOLS%\run_mitm.bat\""
     schtasks /Run /TN "ZCodeNetMITM"
     timeout /t 8 /nobreak >nul
     certutil -addstore -f Root "%USERPROFILE%\.mitmproxy\mitmproxy-ca-cert.cer"
@@ -64,7 +67,8 @@ powershell -NoProfile -Command "$sh = New-Object -ComObject WScript.Shell; $dirs
 
 echo [6/6] Firewall: block ZCode.exe direct outbound (loopback stays open)...
 netsh advfirewall firewall delete rule name="ZCodeForceLoopbackProxy" >nul 2>&1
-netsh advfirewall firewall add rule name="ZCodeForceLoopbackProxy" dir=out program="C:\Program Files\ZCode\ZCode.exe" action=block
+if exist "C:\Program Files\ZCode\ZCode.exe" netsh advfirewall firewall add rule name="ZCodeForceLoopbackProxy" dir=out program="C:\Program Files\ZCode\ZCode.exe" action=block
+if exist "%LOCALAPPDATA%\Programs\ZCode\ZCode.exe" netsh advfirewall firewall add rule name="ZCodeForceLoopbackProxy-user" dir=out program="%LOCALAPPDATA%\Programs\ZCode\ZCode.exe" action=block
 
 echo.
 echo DONE. Mode=%MODE%  proxy port %PROXYPORT%
