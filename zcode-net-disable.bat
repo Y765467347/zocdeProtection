@@ -8,6 +8,12 @@ if not %errorlevel%==0 (
     exit /b
 )
 
+echo WARNING: this FULLY REMOVES the network audit/enforcement layers.
+echo Only run this to deliberately roll back - NOT to fix ZCode errors.
+echo (For ZCode network errors, restart ZCode from its shortcut instead.)
+choice /C YN /T 30 /D N /M "Really remove network enforcement? [Y/N]"
+if not %errorlevel%==1 exit /b
+
 echo [1/5] Removing firewall rule...
 netsh advfirewall firewall delete rule name="ZCodeForceLoopbackProxy" >nul 2>&1
 netsh advfirewall firewall delete rule name="ZCodeForceLoopbackProxy-user" >nul 2>&1
