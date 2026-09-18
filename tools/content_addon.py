@@ -23,8 +23,11 @@ INVENTORY = os.path.join(TOOLS, 'content_paths.json')
 
 WATCH_HOSTS = ('zcode.z.ai', 'bigmodel.cn', 'zhipuai', 'z.ai',
                'open.bigmodel.cn')
-MAX_DISTINCT_PATHS = 60          # per request popup threshold
-MAX_BODY_KB = 2048               # per request popup threshold
+# Calibrated against a real long session: system prompt alone carries
+# 100+ legit paths (skills list, memory index, tool defs). Real context
+# stuffing shows up as thousands of paths or huge bodies.
+MAX_DISTINCT_PATHS = 300         # per request popup threshold
+MAX_BODY_KB = 8192               # per request popup threshold
 SAVE_EVERY = 20
 
 WIN_PATH = re.compile(r'[A-Za-z]:\\{1,2}[A-Za-z0-9_\-./\\ ]{2,120}')
