@@ -24,31 +24,5 @@ foreach ($pattern in $patterns) {
     }
 }
 
-# keep the net-audit counting proxy alive (layer: forced loopback accounting)
-$proxyOk = $false
-try {
-    $c = New-Object Net.Sockets.TcpClient
-    $c.Connect('127.0.0.1', 8765)
-    $c.Close(); $proxyOk = $true
-} catch {}
-if (-not $proxyOk) {
-    $pyw = (Get-Command pythonw.exe -ErrorAction SilentlyContinue).Source
-    if (-not $pyw) { $pyw = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\pythonw.exe' }
-    if (Test-Path $pyw) {
-        Add-Content -Path $log -Value ('{0} net audit proxy down - restarting' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
-        Start-Process -FilePath $pyw -ArgumentList ('"{0}"' -f (Join-Path $toolsDir 'net_audit_proxy.py')) -WindowStyle Hidden
-    }
-}
-
-# keep the MITM inspection layer alive (port 8766, chained through 8765)
-$mitmOk = $false
-try {
-    $c2 = New-Object Net.Sockets.TcpClient
-    $c2.Connect('127.0.0.1', 8766)
-    $c2.Close(); $mitmOk = $true
-} catch {}
-$mitmLauncher = Join-Path $toolsDir 'run_mitm.bat'
-if (-not $mitmOk -and (Test-Path $mitmLauncher)) {
-    Add-Content -Path $log -Value ('{0} mitm layer down - restarting' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
-    Start-Process -FilePath $env:ComSpec -ArgumentList '/c', ('"{0}"' -f $mitmLauncher) -WindowStyle Hidden
-}
+# (net-audit proxy keepalive removed 2026-09-18 by user request: proxy layer off)
+# Snapshot cleanup remains the sole duty of this watchdog.
